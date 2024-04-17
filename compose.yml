@@ -1,0 +1,64 @@
+version: "3.9"
+services:
+  frontend:
+    container_name: frontend
+    image: frontend
+    build:
+      context: ./frontend
+      dockerfile: frontend.dockerfile
+    ports:
+      - $FRONTEND_LOCAL_PORT:$FRONTEND_DOCKER_PORT
+    environment:
+      - NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+    restart: always
+    env_file: ./.env
+    depends_on:
+      - backend
+  backend:
+    container_name: go_zap_backend
+    image: go_zap_backend
+    environment:
+      - DATABASE_HOST=${DB_HOST}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - DATABASE_PORT=${DB_PORT}
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+    build:
+      context: ./backend
+      dockerfile: backend.dockerfile
+    ports:
+      - $BACKEND_LOCAL_PORT:$BACKEND_DOCKER_PORT
+    restart: on-failure
+    depends_on:
+      - postgresdb
+    networks:
+      - learning
+
+  postgresdb:
+    image: postgres:latest
+    container_name: postgresdb
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - DATABASE_HOST=${DB_HOST}
+    ports:
+      - $DB_LOCAL_PORT:$DB_PORT
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+      - ./db_schema/init.sql:/docker-entrypoint-initdb.d/1-schema.sql
+    networks:
+      - learning
+
+volumes:
+  pg_data:
+
+# Networks to be created to facilitate communication between containers
+networks:
+  learning:
+    driver: bridge
